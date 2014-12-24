@@ -53,7 +53,6 @@ public class FootballMigrationApp {
                 .host(MYSQL_HOST).port(MYSQL_PORT)
                 .username(MYSQL_USER).password(MYSQL_PASS)
                 .database(MYSQL_DBNAME).table("team")
-                .query("select * from team")
                 .driverClass(MYSQL_DRIVER)
                 .initialize();
 
@@ -62,7 +61,6 @@ public class FootballMigrationApp {
                 .host(MYSQL_HOST).port(MYSQL_PORT)
                 .username(MYSQL_USER).password(MYSQL_PASS)
                 .database(MYSQL_DBNAME).table("player")
-                .query("select * from player")
                 .driverClass(MYSQL_DRIVER)
                 .initialize();
 
