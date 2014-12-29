@@ -101,7 +101,7 @@ public class FootballMigrationApp {
                         Cells cells = new Cells();
                         cells.add(Cell.create("_id", joined._1()));
                         cells.add(Cell.create("name", joined._2()._1().getString("name")));
-                        cells.add(Cell.create("players", playersCellsToPlayerNames(joined._2()._2())));
+                        cells.add(Cell.create("players", mapCellsToPlayerName(joined._2()._2())));
 
                         return cells;
                     }
@@ -111,7 +111,7 @@ public class FootballMigrationApp {
                      * @param teamPlayers list of team players
                      * @return List of player names
                      */
-                    private List<String> playersCellsToPlayerNames(final Optional<Iterable<Cells>> teamPlayers) {
+                    private List<String> mapCellsToPlayerName(final Optional<Iterable<Cells>> teamPlayers) {
                         return teamPlayers
                                 .transform(new com.google.common.base.Function<Iterable<Cells>, List<String>>() {
                                     @Nullable
