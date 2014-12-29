@@ -6,21 +6,20 @@ import com.stratio.deep.jdbc.config.JdbcConfigFactory;
 import com.stratio.deep.jdbc.config.JdbcDeepJobConfig;
 import com.stratio.deep.mongodb.config.MongoConfigFactory;
 import com.stratio.deep.mongodb.config.MongoDeepJobConfig;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
+
 import scala.Tuple2;
 
 import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
-
-/**
- * Created by rmorandeira on 23/12/14.
- */
 
 public class FootballMigrationApp {
 
@@ -29,19 +28,19 @@ public class FootballMigrationApp {
     private static final String APP_NAME = "deepMySQLToMongodbMigration";
 
     // mySQL properties
-    private static final String  MYSQL_DRIVER = "com.mysql.jdbc.Driver";
-    private static final String  MYSQL_HOST = "172.28.128.3";
+    private static final String MYSQL_DRIVER = "com.mysql.jdbc.Driver";
+    private static final String MYSQL_HOST = "172.28.128.3";
     private static final Integer MYSQL_PORT = 3306;
-    private static final String  MYSQL_USER = "root";
-    private static final String  MYSQL_PASS = "root";
-    private static final String  MYSQL_DBNAME = "football";
+    private static final String MYSQL_USER = "root";
+    private static final String MYSQL_PASS = "root";
+    private static final String MYSQL_DBNAME = "football";
 
     // mongoDB properties
-    private static final String  MONGODB_HOST = "172.28.128.3:27017";
-    private static final String  MONGODB_DBNAME = "football";
-    private static final String  MONGODB_COLLECTION = "teams";
+    private static final String MONGODB_HOST = "172.28.128.3:27017";
+    private static final String MONGODB_DBNAME = "football";
+    private static final String MONGODB_COLLECTION = "teams";
 
-    public static void main (String [] args) {
+    public static void main(String[] args) {
 
         // Creating the Deep Context where args are Spark Master and Job Name
         SparkConf sparkConf = new SparkConf().setAppName(APP_NAME).setMaster(CLUSTER);
@@ -83,8 +82,8 @@ public class FootballMigrationApp {
             }
         }).groupByKey();
 
-        JavaPairRDD<Long, Tuple2<Cells, Optional<Iterable<Cells>>>> joinedPairRDD = teamPairRDD.leftOuterJoin(playerPairRDD);
-
+        JavaPairRDD<Long, Tuple2<Cells, Optional<Iterable<Cells>>>> joinedPairRDD = teamPairRDD
+                .leftOuterJoin(playerPairRDD);
 
         // Creating a configuration for the mongodb result RDD and initialize it
         MongoDeepJobConfig<Cells> outputMongodbConfig = MongoConfigFactory.createMongoDB()
@@ -92,44 +91,47 @@ public class FootballMigrationApp {
                 .database(MONGODB_DBNAME).collection(MONGODB_COLLECTION)
                 .initialize();
 
-
         // Transforming the joined result to the desirable structure in mongodb
         // Ej: {_id: <team_id>, name: <team_name>, players: [<player_name_1>, <player_name_2>]}
-        JavaRDD<Cells> outputRDD = joinedPairRDD.map(new Function<Tuple2<Long, Tuple2<Cells, Optional<Iterable<Cells>>>>, Cells>() {
+        JavaRDD<Cells> outputRDD = joinedPairRDD
+                .map(new Function<Tuple2<Long, Tuple2<Cells, Optional<Iterable<Cells>>>>, Cells>() {
 
-            @Override
-            public Cells call(Tuple2<Long, Tuple2<Cells, Optional<Iterable<Cells>>>> joined) throws Exception {
-                Cells cells = new Cells();
-                cells.add(Cell.create("_id", joined._1()));
-                cells.add(Cell.create("name", joined._2()._1().getString("name")));
-                cells.add(Cell.create("players", playersCellsToPlayerNames(joined._2()._2())));
-
-                return cells;
-            }
-
-            /**
-             * Transforms a list of players in a list of players' names
-             * @param teamPlayers
-             * @return List of player names
-             */
-            private List<String> playersCellsToPlayerNames(final Optional<Iterable<Cells>> teamPlayers) {
-                return teamPlayers.transform(new com.google.common.base.Function<Iterable<Cells>, List<String>>() {
-                    @Nullable
                     @Override
-                    public List<String> apply(Iterable<Cells> teamPlayers) {
-                        List<String> playersNames = new ArrayList<>();
-                        for (Cells player : teamPlayers) {
-                            playersNames.add(new StringBuffer().append(player.getString("lastname")).append(", ").append(player.getString("firstname")).toString());
-                        }
+                    public Cells call(Tuple2<Long, Tuple2<Cells, Optional<Iterable<Cells>>>> joined) throws Exception {
+                        Cells cells = new Cells();
+                        cells.add(Cell.create("_id", joined._1()));
+                        cells.add(Cell.create("name", joined._2()._1().getString("name")));
+                        cells.add(Cell.create("players", playersCellsToPlayerNames(joined._2()._2())));
 
-                        return playersNames;
+                        return cells;
                     }
-                }).orNull();
-            }
 
-        });
+                    /**
+                     * Transforms a list of players in a list of players' names
+                     * @param teamPlayers list of team players
+                     * @return List of player names
+                     */
+                    private List<String> playersCellsToPlayerNames(final Optional<Iterable<Cells>> teamPlayers) {
+                        return teamPlayers
+                                .transform(new com.google.common.base.Function<Iterable<Cells>, List<String>>() {
+                                    @Nullable
+                                    @Override
+                                    public List<String> apply(Iterable<Cells> teamPlayers) {
+                                        List<String> playersNames = new ArrayList<>();
+                                        for (Cells player : teamPlayers) {
+                                            playersNames.add(
+                                                    player.getString("lastname") + ", " + player
+                                                            .getString("firstname"));
+                                        }
 
-        deepContext.saveRDD(outputRDD.rdd(), outputMongodbConfig);
+                                        return playersNames;
+                                    }
+                                }).orNull();
+                    }
+
+                });
+
+        DeepSparkContext.saveRDD(outputRDD.rdd(), outputMongodbConfig);
 
         deepContext.stop();
 
