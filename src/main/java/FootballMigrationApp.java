@@ -67,7 +67,7 @@ public class FootballMigrationApp {
         JavaRDD<Cells> teamRDD = deepContext.createJavaRDD(mySQLTeamConfig);
         JavaRDD<Cells> playerRDD = deepContext.createJavaRDD(mySQLPlayerConfig);
 
-        // Joining Players with Teams
+        // Map teams to pair with (team id, team)
         JavaPairRDD<Long, Cells> teamPairRDD = teamRDD.mapToPair(new PairFunction<Cells, Long, Cells>() {
             @Override
             public Tuple2<Long, Cells> call(Cells cells) throws Exception {
@@ -75,6 +75,7 @@ public class FootballMigrationApp {
             }
         });
 
+        // Map players to pair with (team id, player) and group by team_id
         JavaPairRDD<Long, Iterable<Cells>> playerPairRDD = playerRDD.mapToPair(new PairFunction<Cells, Long, Cells>() {
             @Override
             public Tuple2<Long, Cells> call(Cells cells) throws Exception {
